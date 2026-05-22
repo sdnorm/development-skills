@@ -1,3 +1,14 @@
+---
+name: rails
+description: |
+  Conventions and patterns for building Rails applications: business logic in concerns
+  and (possibly tableless) models rather than service objects, Hotwire/Turbo for page
+  updates and broadcasting, Stimulus for client-side interactivity, Minitest with
+  fixtures (no RSpec, no factories), and local CI via `gh-signoff` instead of cloud CI.
+  Use whenever modifying or scaffolding Rails code in this codebase — these are
+  house rules, not suggestions.
+---
+
 # Rails Skill
 
 Conventions and patterns for Rails development. This is a skill — a set of guidelines that define how we build Rails applications.
