@@ -46,6 +46,16 @@ ln -s ~/src/development-skills/skills/rails ~/.claude/skills/rails
 
 Drop the link and just `@`-mention the file in a Claude Code conversation when you want it loaded for that session.
 
+## External skill collections
+
+Skill collections maintained outside this repo that complement our house rules:
+
+| Collection | What it covers | How to use |
+|------------|----------------|------------|
+| [marckohlbrugge/37signals-skills](https://github.com/marckohlbrugge/37signals-skills) | Rails in the 37signals style, extracted from their open-source Campfire and Fizzy codebases and DHH's code reviews — core conventions, Hotwire/Turbo, jobs, migrations, security/multitenancy, testing, webhooks, plus a `/dhh` code-review skill. Also includes a `guide/` directory of 35+ deeper reference docs. | Clone and copy or symlink the skills you want into `.claude/skills/` (per-project) or `~/.claude/skills/` (user-wide), same as the methods above. |
+
+Where an external skill overlaps with one of ours (e.g. its `rails-best-practices-core` vs our [rails](skills/rails/SKILL.md)), our skill wins for team conventions — treat the external one as supplementary reference.
+
 ## Adding a new skill
 
 1. Create `skills/<short-name>/SKILL.md`.
