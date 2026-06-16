@@ -4,7 +4,8 @@ description: |
   Conventions and patterns for building Rails applications: business logic in concerns
   and (possibly tableless) models rather than service objects, Hotwire/Turbo for page
   updates and broadcasting, Stimulus for client-side interactivity, Minitest with
-  fixtures (no RSpec, no factories), and local CI via `gh-signoff` instead of cloud CI.
+  fixtures (no RSpec, no factories), and local CI via Rails 8's
+  `ActiveSupport::ContinuousIntegration` plus `gh-signoff` instead of cloud CI.
   Use whenever modifying or scaffolding Rails code in this codebase — these are
   house rules, not suggestions.
 ---
@@ -260,9 +261,12 @@ end
 
 ---
 
-## CI: Local with gh-signoff
+## CI: Local with Rails `CI` runner and gh-signoff
 
-Use [basecamp/gh-signoff](https://github.com/basecamp/gh-signoff) for local CI. Run the test suite on your own machine and sign off when tests pass. No cloud CI required.
+Use Rails 8's built-in `ActiveSupport::ContinuousIntegration` runner together with
+[basecamp/gh-signoff](https://github.com/basecamp/gh-signoff). Run the full CI
+pipeline on your own machine and sign off when everything passes. No cloud CI
+required.
 
 ### Setup
 
@@ -278,24 +282,48 @@ Require signoff for PR merges:
 gh signoff install
 ```
 
-### bin/ci
+### config/ci.rb
 
-Create a `bin/ci` script that runs the full test suite and signs off on success:
+Define the CI pipeline in `config/ci.rb`. Keep `bin/ci` as the Rails 8 default,
+which loads `ActiveSupport::ContinuousIntegration` and requires this file.
 
-```bash
-#!/bin/bash
-set -e
+```ruby
+# Run using bin/ci
 
-echo "== Running tests =="
-bin/rails test
-bin/rails test:system
+CI.run do
+  step "Setup", "bin/setup --skip-server"
 
-echo ""
-echo "== All tests passed. Signing off. =="
-gh signoff
+  step "Tests: Unit & integration", "bin/rails test"
+  step "Tests: System", "bin/rails test:system"
+
+  step "Style: Ruby", "bin/rubocop"
+
+  step "Security: Gem audit", "bin/bundler-audit"
+  step "Security: Importmap vulnerability audit", "bin/importmap audit"
+  step "Security: Brakeman code analysis", "bin/brakeman --quiet --no-pager --exit-on-warn --exit-on-error"
+
+  if success?
+    step "Signoff: All systems go. Ready for merge and deploy.", "gh signoff"
+  else
+    failure "Signoff: CI failed. Do not merge or deploy.", "Fix the issues and try again."
+  end
+end
 ```
 
-Make it executable:
+### bin/ci
+
+Leave `bin/ci` as the Rails 8 default:
+
+```ruby
+#!/usr/bin/env ruby
+require_relative "../config/boot"
+require "active_support/continuous_integration"
+
+CI = ActiveSupport::ContinuousIntegration
+require_relative "../config/ci.rb"
+```
+
+Make sure it is executable:
 
 ```bash
 chmod +x bin/ci
@@ -309,33 +337,24 @@ Run your local CI before merging:
 bin/ci
 ```
 
-This runs all tests (unit, integration, system) and if everything passes, signs off on the current commit via `gh signoff`. The green status will appear on your PR, satisfying the branch protection rule.
+This runs setup, the full Minitest suite, style checks, security audits, and if
+everything passes, signs off on the current commit via `gh signoff`. The green
+status will appear on your PR, satisfying the branch protection rule.
 
-### Partial Signoff (Optional)
+### GitHub repository settings
 
-For larger projects, use partial signoff to track different CI steps:
+After installing `gh signoff`, configure the repository so PRs cannot be merged
+without a passing signoff:
 
-```bash
-#!/bin/bash
-set -e
+1. Go to **Settings → Branches**.
+2. Edit the rule for your default branch (`main`).
+3. Enable **"Restrict deletions"** and **"Require pull request reviews before merging"**.
+4. Under **"Require status checks to pass before merging"**, enable it and search
+   for the `signoff` status check. Add it as required.
+5. Enable **"Require conversation resolution before merging"** if desired.
+6. Save the rule.
 
-echo "== Running unit & integration tests =="
-bin/rails test
-gh signoff tests
-
-echo "== Running system tests =="
-bin/rails test:system
-gh signoff system
-
-echo ""
-echo "== All checks passed =="
-```
-
-Require partial signoff:
-
-```bash
-gh signoff install tests system
-```
+Now `gh signoff` acts as the required CI gate for every PR.
 
 ---
 
@@ -349,4 +368,4 @@ gh signoff install tests system
 | Page navigation & updates | Hotwire / Turbo (Drive, Frames, Streams) |
 | Testing framework | Minitest |
 | Test data | Fixtures (no factories) |
-| CI | Local via `bin/ci` + `gh signoff` |
+| CI | Local via `ActiveSupport::ContinuousIntegration` + `gh signoff` |
